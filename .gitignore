@@ -112,3 +112,14 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# vscode
+.vscode/
+.DS_STORE/
+
+# don't add build/dist directories:
+build/
+dist/
+
+# janky random notebook:
+random.ipynb
