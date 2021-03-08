@@ -18,9 +18,13 @@ class BaseConnection(object):
         self.host = host
         self.username = username
         self.keypath = keypath
-        self.key = paramiko.RSAKey.from_private_key_file(self.keypath)
-        # self.password = getpass.getpass()
-        # self.connection = None  # ssh connection attribute
+        try:
+            self.key = paramiko.RSAKey.from_private_key_file(self.keypath)
+        
+        except Exception as e:
+            print('Issue loading public key file.')
+            print(e)
+            self.key = None
         self.stfp_tunnel = None  # stfp connection attribute
         self.client = None # SSH client instance
         self.port = 22
@@ -32,10 +36,25 @@ class BaseConnection(object):
         """
         self.port = new_port
     
+    def _pathtype_check(self, path_obj):
+        """ Internal method to check if path_obj is a pathlib.Path instance.
+            If it is a string, then path_obj is converted to pathlib.Path type.
+        Args:
+            path_obj (str or pathlib.Path): Candidate path object to check type
+        
+        Returns:
+            pathlib.Path: path_obj as pathlib.Path instance
+        """
+        if type(path_obj) is str:
+            return Path(path_obj)
+        
+        else:
+            return path_obj
+    
     def connect_ssh(self):
         """ Connect to host using paramiko.SSHClient()  instance.
         Returns:
-            self.client: SSH client isntance.
+            self.client: SSH client instance.
         """
         # Check to see if connection already exists.  If not, create client instance and connect:
         if self.client is None:
@@ -118,16 +137,9 @@ class BaseConnection(object):
         # Open SFTP tunnel if not already open
         if self.stfp_tunnel is None:
             self.connect_sftp()
-        
-        # Treat given paths as strings:
-        if type(local_path) is not str:
-            local_path = str(local_path)
-        
-        if type(host_path) is not str:
-            host_path = str(host_path)
-        
+
         # Send file:
-        send_output = self.stfp_tunnel.put(local_path, host_path)
+        send_output = self.stfp_tunnel.put(str(local_path), str(host_path))
 
         return send_output
     
@@ -144,12 +156,8 @@ class BaseConnection(object):
         if self.stfp_tunnel is None:
             self.connect_sftp()
         
-        # Treat given paths as strings:
-        if type(host_path) is not str:
-            host_path = str(host_path)
-        
         # Send file:
-        send_output = self.stfp_tunnel.putfo(file_object, host_path)
+        send_output = self.stfp_tunnel.putfo(file_object, str(host_path))
 
         return send_output
 
@@ -166,16 +174,9 @@ class BaseConnection(object):
         # Open SFTP tunnel if not already open
         if self.stfp_tunnel is None:
             self.connect_sftp()
-        
-        # Treat given paths as strings:
-        if type(local_path) is not str:
-            local_path = str(local_path)
-        
-        if type(host_path) is not str:
-            host_path = str(host_path)
-        
+
         # Send file:
-        get_output = self.stfp_tunnel.get(local_path, host_path)
+        get_output = self.stfp_tunnel.get(str(local_path), str(host_path))
 
         return get_output
 
@@ -191,12 +192,8 @@ class BaseConnection(object):
         if self.stfp_tunnel is None:
             self.connect_sftp()
         
-        # Treat given paths as strings:
-        if type(host_path) is not str:
-            host_path = str(host_path)
-        
         # Send file:
-        get_output = self.stfp_tunnel.getfo(file_object, host_path)
+        get_output = self.stfp_tunnel.getfo(file_object, str(host_path))
 
         return get_output
     
