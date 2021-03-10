@@ -28,6 +28,7 @@ class BaseConnection(object):
         self.stfp_tunnel = None  # stfp connection attribute
         self.client = None # SSH client instance
         self.port = 22
+        self.timeout = 1000
 
     def _change_port(self, new_port):
         """ Change default SSH port value 22 to new_port:
@@ -68,8 +69,9 @@ class BaseConnection(object):
                     username=self.username,
                     key_filename=self.keypath,
                     look_for_keys=True,
-                    timeout=5000
+                    timeout=self.timeout
                 )
+
             except paramiko.AuthenticationException as e:
                 # If authentication doesn't work, try with a password:
                 print(f'Check your SSH key for host {self.host}, username {self.username}.')
@@ -82,11 +84,12 @@ class BaseConnection(object):
                             port=self.port,
                             username=self.username,
                             password=getpass.getpass(),
-                            timeout=5000
+                            timeout=self.timeout
                         )
                     
-                    except:
-                        raise
+                    except paramiko.AuthenticationException as e2:
+                        print('Wrong password.')
+                        raise e2
 
                 # Else, raise authentication exception:
                 else:
@@ -229,6 +232,204 @@ class BaseConnection(object):
         
         return True
 
+    def upload_obj(self, obj, host_path, fname, close_connection=True):
+        """ Uploads file-like object converted to StringIO object to host_path
+        Args:
+            obj (Dict): File-like object to send to host path.
+            host_path (str or pathlib.Path): Path on host to send and save obj.
+            fname (str): File name for file saved on host machine.
+            close_connection (bool): Close connection once complete.  Default is True.
+        
+        Returns:
+            paramiko.sftp_attr.SFTPAttributes
+        """
+        host_path = self._pathtype_check(host_path)
+
+        # Make sure obj is StringIO type:
+        if type(obj) is not StringIO:
+            obj = StringIO(obj)
+        
+        # Handle error with printed message, returning None instead.
+        try:
+            print(f'Uploading file {fname} to {self.host}...')
+            send_output = self.send_fileobject(obj, host_path)
+            print('Done.')
+        
+        except Exception as e:
+            print(f'Error occured uploading {fname}.')
+            print(e)
+            send_output = None
+
+        # Close connection:
+        if close_connection:
+            self.close_ssh()
+    
+        return send_output
+
+    def upload_jsonobj(self, dictobj, host_path, fname, close_connection=True):
+        """ Upload dictionary-like object to host with path host_path / fname. 
+        Args:
+            dictobj (Dict): Dictionary-like object that can be converted to JSON string dump.
+            host_path (str or pathlib.Path): Path on host to send data.
+            fname (str): File name for file saved on host machine.  Will always be a json file.
+            close_connection (bool): Close connection once complete.  Default is True.
+        
+        Returns:
+            paramiko.sftp_attr.SFTPAttributes
+        """
+        # Convert to Path object and make sure file name is *.json:
+        fname_json = fname.split('.')[0] + '.json'
+        host_path = self._pathtype_check(host_path)
+        
+        host_json_path = host_path / fname_json
+
+        # Make JSON string dump and send to host path:
+        dict_dumps = json.dumps(dictobj, indent=4)
+        return self.upload_obj(
+            dict_dumps, host_json_path, fname_json, close_connection=close_connection
+            )
+
+    def upload_file(self, file_path, host_path, close_connection=True):
+        """ Upload file to host server location host_path.
+        Args:
+            file_path (str or pathlib.Path): Local file location.
+            host_path (str or pathlib.Path): Host location to copy file to.
+            close_connection (bool): Close connection once complete.  Default is True.
+        
+        Returns:
+            paramiko.sftp_attr.SFTPAttributes
+        """
+        # Check to make sure given paths are pathlib.Path instances:
+        host_path = self._pathtype_check(host_path)
+        file_path = self._pathtype_check(file_path)
+        
+        # Check to see if file name with suffix given in host_path:
+        if not host_path.suffix:
+            # Otherwise, grab it from file_path stem:
+            fname = file_path.name
+            host_path = host_path / fname
+        
+        else:
+            fname = host_path.name
+        
+        # Try uploading file to host:
+        try:
+            print(f'Uploading file {fname} to {self.host}...')
+            send_output = self.send(file_path, host_path)
+            print('Done.')
+        
+        except Exception as e:
+            print(f'Error occured uploading file {fname}.')
+            print(e)
+            send_output = None
+        
+        # Close connection:
+        if close_connection:
+            self.close_ssh()
+
+        return send_output
+    
+    def run_python_script(
+        self, python_path,
+        venv_cmd=None, cmd_opt=None, py_args=None, local_path=None, python_cmd='python'
+        ):
+        """ Runs a python script on remote host, copying said script to remote location
+            if a local path is given.
+
+            It is possible to activate a python virtual environment using the cmd_opt kwarg.
+            For example, cmd_opt='conda activate env1' will activate env1 before running the
+            given python code.
+        Args:
+            python_path (str or pathlib.Path): Remote host path to run python script.
+            venv_cmd (str): If provided, this command is run before the python script.  Can be
+                used to activate a python virtual environment.
+            cmd_opt (str): String appended between python_cmd and python file name in command.
+                Default is None.
+            py_args (Tuple): Arguments passed into python script when executed. Default is None.
+            local_path (str or pathlib.Path): If provided, the local python file path is copied
+                to the given python_path parent directory and then run.  Default is None.
+            python_cmd (str): Terminal command to run python file.  Default is 'python'.
+        
+        Returns:
+            List: List of stdout value converted to strings from ssh channel.
+        """
+        # set strings to Paths:
+        python_path = self._pathtype_check(python_path)
+
+        if local_path is not None:
+            local_path = self._pathtype_check(local_path)
+
+            # Add local python file name:
+            if not python_path.suffix:
+                python_path = python_path / local_path.name
+            
+            # Make sure local path file name used:
+            elif python_path.name != local_path.name:
+                python_path = python_path.parent / local_path.name
+
+            self.upload_file(local_path, python_path, close_connection=False)
+
+            # No need to keep the SFTP tunnel open:
+            self.close_sftp()
+
+        else:
+            self.connect_ssh()        
+
+        # A bit brute force, but works fine for now:
+        command_list = [python_cmd]
+
+        # Handle cmd_opt given:
+        if cmd_opt is not None:
+            command_list.append(cmd_opt)
+        
+        command_list.append(python_path.name)
+
+        # Handle  args given.
+        if py_args is not None:
+            py_args_join = ' '.join(py_args)
+            command_list.append(py_args_join)
+
+        command = ' '.join(command_list)
+
+        # Run command:
+        try:
+            print(f'Running command on {self.host}...')
+
+            # Change cwd command:
+            chdir_command = f'cd {str(python_path.parent)}'
+
+            # Execute full set of commands:
+            if venv_cmd:
+                full_command = f'{venv_cmd};{chdir_command};{command}'
+            
+            else:
+                full_command = f'{chdir_command};{command}'
+            std = self.client.exec_command(full_command)
+    
+            # Check stream error output first:
+            err = std[2].read()
+            if len(err):
+                print(f'Error occured when running command {command}:')
+                for i in err.splitlines():
+                    print(str(i, encoding='utf-8'))
+                
+                output = []
+
+            # If no error returned, then return stream output:
+            else:
+                output = std[1].read().splitlines()
+                for i in output:
+                    print(str(i, encoding='utf-8'))
+                print('Done.')
+        
+        except IOError as e:
+            print(e)
+            print(f'Check provided \'pyscript_path\'.')
+            output = []
+
+        self.close_ssh()
+        return output
+
 
 class KeyUploader(object):
     """ Container class for retreiving and uploading key to a host machine.
@@ -270,9 +471,3 @@ class KeyUploader(object):
         
         except:
             raise
-
-    
-
-
-
-    
