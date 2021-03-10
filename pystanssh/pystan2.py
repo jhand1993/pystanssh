@@ -45,8 +45,21 @@ class PyStan2SSH(BaseConnection):
         stan_dict['input'] = input_data_copy
         stan_dict['iterations'] = iterations
         stan_dict['nchains'] = nchains
-        stan_dict['Stan model'] = stan_code_path.name
+        stan_dict['Stan_model'] = stan_code_path.name
         stan_dict['stan_kwargs'] = kwargs
+
+        # Handle init input appropriately:
+        if type(init) == dict:
+            stan_dict['unique_init'] = False
+            stan_dict['init'] = init
+        
+        else:
+            init_full_dict = {}
+            stan_dict['unique_init'] = True
+            for n in range(nchains):
+                init_full_dict[n] = init[n] 
+            
+            stan_dict['init'] = init_full_dict
 
         # Upload Stan code file:
         self.upload_file(stan_code_path, host_path)
