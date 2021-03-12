@@ -3,6 +3,9 @@
 from pathlib import Path
 import getpass
 from os import system
+import json
+from io import StringIO
+from numpy import ndarray, generic
 
 import paramiko
 
@@ -17,7 +20,8 @@ class BaseConnection(object):
     def __init__(self, host, username, keypath):
         self.host = host
         self.username = username
-        self.keypath = keypath
+        # Convert Path instance to string:
+        self.keypath = str(keypath)
         try:
             self.key = paramiko.RSAKey.from_private_key_file(self.keypath)
         
@@ -52,6 +56,32 @@ class BaseConnection(object):
         else:
             return path_obj
     
+    def _convert_arrayitems_to_list(self, array_dict):
+        """ Internal method converting copy of input dictionary's array items to
+            lists.
+        Args:
+            array_dist (Dict): Dictionary to check for items that are type numpy ndarray.
+                If so, converts said arrays to lists.
+        
+        Returns:
+            List: Copied dictionary with arrays converted to lists.
+        """
+        # Convert numpy arrays to lists:
+        array_dict_copy = array_dict.copy()
+        for key, value in array_dict.items():
+            if type(value) is ndarray:
+                array_dict_copy[key] = value.tolist()
+
+            # Recursively handle nested dictionaries:
+            elif type(value) is dict:
+                self._convert_arrayitems_to_list(value)
+            
+            # Try to convert numpy scalar types to corresponding python native types:
+            elif isinstance(value, generic):
+                array_dict_copy[key] = value.item()
+        
+        return array_dict_copy
+
     def connect_ssh(self):
         """ Connect to host using paramiko.SSHClient()  instance.
         Returns:
@@ -179,7 +209,7 @@ class BaseConnection(object):
             self.connect_sftp()
 
         # Send file:
-        get_output = self.stfp_tunnel.get(str(local_path), str(host_path))
+        get_output = self.stfp_tunnel.get(str(host_path), str(local_path))
 
         return get_output
 
@@ -196,7 +226,7 @@ class BaseConnection(object):
             self.connect_sftp()
         
         # Send file:
-        get_output = self.stfp_tunnel.getfo(file_object, str(host_path))
+        get_output = self.stfp_tunnel.getfo(str(host_path), file_object)
 
         return get_output
     
@@ -284,7 +314,15 @@ class BaseConnection(object):
         host_json_path = host_path / fname_json
 
         # Make JSON string dump and send to host path:
-        dict_dumps = json.dumps(dictobj, indent=4)
+        try:
+            dict_dumps = json.dumps(dictobj, indent=4)
+        
+        # Let user know they have nonserializable data types (probably from numpy) in 
+        # dictionaries:
+        except TypeError as e:
+            print('Check non-array/non-list data types in input or init dictionaries!')
+            raise(e)
+    
         return self.upload_obj(
             dict_dumps, host_json_path, fname_json, close_connection=close_connection
             )
@@ -320,7 +358,7 @@ class BaseConnection(object):
         
         except Exception as e:
             print(f'Error occured uploading file {fname}.')
-            print(e)
+            raise
             send_output = None
         
         # Close connection:
@@ -328,6 +366,46 @@ class BaseConnection(object):
             self.close_ssh()
 
         return send_output
+
+    def download_file(self, host_path, file_path, close_connection=True):
+        """ Upload file to host server location host_path.
+        Args:
+            host_path (str or pathlib.Path): Host location to copy file to.
+            file_path (str or pathlib.Path): Local file location.
+            close_connection (bool): Close connection once complete.  Default is True.
+        
+        Returns:
+            paramiko.sftp_attr.SFTPAttributes
+        """
+        # Check to make sure given paths are pathlib.Path instances:
+        host_path = self._pathtype_check(host_path)
+        file_path = self._pathtype_check(file_path)
+        
+        # Check to see if file name with suffix given in host_path:
+        if not file_path.suffix:
+            # Otherwise, grab it from file_path stem:
+            fname = host_path.name
+            file_path = file_path / fname
+        
+        else:
+            fname = file_path.name
+        
+        # Try uploading file to host:
+        try:
+            print(f'Downloading file {fname} from {self.host}...')
+            get_output = self.get(host_path, file_path)
+            print('Done.')
+        
+        except Exception as e:
+            print(f'Error occured downloading file {fname}.')
+            raise
+            get_output = None
+        
+        # Close connection:
+        if close_connection:
+            self.close_ssh()
+
+        return get_output
     
     def run_python_script(
         self, python_path,

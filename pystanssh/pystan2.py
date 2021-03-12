@@ -33,13 +33,9 @@ class PyStan2SSH(BaseConnection):
         Returns:
             Dict: Stan input dictionary sent to remote host as JSON file.
         """
-        input_data_copy = input_data.copy()
+        # Convert arrays to lists:
+        input_data_copy = self._convert_arrayitems_to_list(input_data)
         stan_dict = {}
-
-        # Convert numpy arrays to lists:
-        for key, value in input_data.items():
-            if type(value) is ndarray:
-                input_data_copy[key] = value.tolist()
         
         # Construct dictionary to send as JSON StringIO
         stan_dict['input'] = input_data_copy
@@ -48,16 +44,16 @@ class PyStan2SSH(BaseConnection):
         stan_dict['Stan_model'] = stan_code_path.name
         stan_dict['stan_kwargs'] = kwargs
 
-        # Handle init input appropriately:
+        # Handle init input appropriately, converting arrays to lists as needed:
         if type(init) == dict:
             stan_dict['unique_init'] = False
-            stan_dict['init'] = init
+            stan_dict['init'] = self._convert_arrayitems_to_list(init)
         
         else:
             init_full_dict = {}
             stan_dict['unique_init'] = True
             for n in range(nchains):
-                init_full_dict[n] = init[n] 
+                init_full_dict[n] = self._convert_arrayitems_to_list(init[n]) 
             
             stan_dict['init'] = init_full_dict
 
