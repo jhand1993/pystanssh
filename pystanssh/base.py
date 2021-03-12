@@ -5,8 +5,10 @@ import getpass
 from os import system
 import json
 from io import StringIO
-from numpy import ndarray, generic
+import gzip
+from shutil import copyfileobj
 
+from numpy import ndarray, generic
 import paramiko
 
 class BaseConnection(object):
@@ -50,11 +52,7 @@ class BaseConnection(object):
         Returns:
             pathlib.Path: path_obj as pathlib.Path instance
         """
-        if type(path_obj) is str:
-            return Path(path_obj)
-        
-        else:
-            return path_obj
+        return Utility.pathtype_check(path_obj)
     
     def _convert_arrayitems_to_list(self, array_dict):
         """ Internal method converting copy of input dictionary's array items to
@@ -133,8 +131,8 @@ class BaseConnection(object):
     def connect_sftp(self, host_path=None):
         """ Open sftp connection to host.
         Args:
-            host_path (str): Directory to load on host. If None, then no change in directory performed.
-                Uses SFTP.chdir() method.  Default is None.
+            host_path (str): Directory to load on host. If None, then no change in directory
+                performed. Uses SFTP.chdir() method.  Default is None.
             
         Returns:
             self.sftp: SFTP tunnel instance.
@@ -321,6 +319,7 @@ class BaseConnection(object):
         # dictionaries:
         except TypeError as e:
             print('Check non-array/non-list data types in input or init dictionaries!')
+            print('All data types must be native python types.')
             raise(e)
     
         return self.upload_obj(
@@ -367,12 +366,14 @@ class BaseConnection(object):
 
         return send_output
 
-    def download_file(self, host_path, file_path, close_connection=True):
+    def download_file(self, host_path, file_path, close_connection=True, compress=True):
         """ Upload file to host server location host_path.
         Args:
             host_path (str or pathlib.Path): Host location to copy file to.
             file_path (str or pathlib.Path): Local file location.
             close_connection (bool): Close connection once complete.  Default is True.
+            compress (bool): If True, then the file is downloaded and then compressed.
+                Default is True.
         
         Returns:
             paramiko.sftp_attr.SFTPAttributes
@@ -404,6 +405,9 @@ class BaseConnection(object):
         # Close connection:
         if close_connection:
             self.close_ssh()
+
+        if compress:
+            Utility.compress_file(file_path)
 
         return get_output
     
@@ -549,3 +553,41 @@ class KeyUploader(object):
         
         except:
             raise
+
+class Utility(object):
+    """ Container class for misc functionality
+    """
+    @staticmethod
+    def compress_file(path, drop_original=True):
+        """ Compresses file given by path using gzip.
+        Args:
+            path (str or pathlib.Path): Path of file to compress.
+            drop_original (bool): If True, then the original file is dropped.
+                Default is True.
+        """
+        path = Utility.pathtype_check(path)
+        fname = path.name
+        gzip_path = path.parent / f'{fname}.gz'
+        with open(path, 'rb') as f_in:
+            with gzip.open(gzip_path, 'wb') as f_out:
+                copyfileobj(f_in, f_out)
+        
+        # Drop original file if requested:
+        if drop_original:
+            path.unlink()
+
+    @staticmethod
+    def pathtype_check(path_obj):
+        """ Method to check if path_obj is a pathlib.Path instance.
+            If it is a string, then path_obj is converted to pathlib.Path type.
+        Args:
+            path_obj (str or pathlib.Path): Candidate path object to check type
+        
+        Returns:
+            pathlib.Path: path_obj as pathlib.Path instance
+        """
+        if type(path_obj) is str:
+            return Path(path_obj)
+        
+        else:
+            return path_obj
