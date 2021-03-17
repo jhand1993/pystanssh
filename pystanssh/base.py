@@ -411,106 +411,28 @@ class BaseConnection(object):
 
         return get_output
     
-    def run_python_script(
-        self, python_path,
-        venv_cmd=None, cmd_opt=None, py_args=None, local_path=None, python_cmd='python'
-        ):
-        """ Runs a python script on remote host, copying said script to remote location
-            if a local path is given.
-
-            It is possible to activate a python virtual environment using the cmd_opt kwarg.
-            For example, cmd_opt='conda activate env1' will activate env1 before running the
-            given python code.
+    def run_command(self, cmd, cmd_path):
+        """ Wrapper for 'exec_command' method to run a single command on a ssh
+            terminal at the given path.
         Args:
-            python_path (str or pathlib.Path): Remote host path to run python script.
-            venv_cmd (str): If provided, this command is run before the python script.  Can be
-                used to activate a python virtual environment.
-            cmd_opt (str): String appended between python_cmd and python file name in command.
-                Default is None.
-            py_args (Tuple): Arguments passed into python script when executed. Default is None.
-            local_path (str or pathlib.Path): If provided, the local python file path is copied
-                to the given python_path parent directory and then run.  Default is None.
-            python_cmd (str): Terminal command to run python file.  Default is 'python'.
-        
-        Returns:
-            List: List of stdout value converted to strings from ssh channel.
+            cmd (str): Command to execute on remote terminal.
+            cmd_path (str or pathlib.Path): Path to execute command.
         """
-        # set strings to Paths:
-        python_path = self._pathtype_check(python_path)
-
-        if local_path is not None:
-            local_path = self._pathtype_check(local_path)
-
-            # Add local python file name:
-            if not python_path.suffix:
-                python_path = python_path / local_path.name
-            
-            # Make sure local path file name used:
-            elif python_path.name != local_path.name:
-                python_path = python_path.parent / local_path.name
-
-            self.upload_file(local_path, python_path, close_connection=False)
-
-            # No need to keep the SFTP tunnel open:
-            self.close_sftp()
-
-        else:
-            self.connect_ssh()        
-
-        # A bit brute force, but works fine for now:
-        command_list = [python_cmd]
-
-        # Handle cmd_opt given:
-        if cmd_opt is not None:
-            command_list.append(cmd_opt)
+        if self.client is None:
+            self.connect_ssh()
         
-        command_list.append(python_path.name)
-
-        # Handle  args given.
-        if py_args is not None:
-            py_args_join = ' '.join(py_args)
-            command_list.append(py_args_join)
-
-        command = ' '.join(command_list)
-
-        # Run command:
         try:
-            print(f'Running command on {self.host}...')
+            print(f'Running command \'{cmd}\'...')
+            full_command = f'{str(cmd_path)};{cmd}'
+            exec_out = self.client.exec_command(full_command)
 
-            # Change cwd command:
-            chdir_command = f'cd {str(python_path.parent)}'
-
-            # Execute full set of commands:
-            if venv_cmd:
-                full_command = f'{venv_cmd};{chdir_command};{command}'
-            
-            else:
-                full_command = f'{chdir_command};{command}'
-            std = self.client.exec_command(full_command)
-    
-            # Check stream error output first:
-            err = std[2].read()
-            if len(err):
-                print(f'Error occured when running command {command}:')
-                for i in err.splitlines():
-                    print(str(i, encoding='utf-8'))
-                
-                output = []
-
-            # If no error returned, then return stream output:
-            else:
-                output = std[1].read().splitlines()
-                for i in output:
-                    print(str(i, encoding='utf-8'))
-                print('Done.')
+            if exec_out[2].read():
+                print(exec_out[2].read())
         
-        except IOError as e:
-            print(e)
-            print(f'Check provided \'pyscript_path\'.')
-            output = []
+        except:
+            raise
 
-        self.close_ssh()
-        return output
+        return [output.read() for output in exec_out]
 
 
 class KeyUploader(object):
