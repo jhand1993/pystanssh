@@ -423,16 +423,14 @@ class BaseConnection(object):
         
         try:
             print(f'Running command \'{cmd}\'...')
-            full_command = f'{str(cmd_path)};{cmd}'
+            full_command = f'cd {str(cmd_path)};{cmd}'
             exec_out = self.client.exec_command(full_command)
-
-            if exec_out[2].read():
-                print(exec_out[2].read())
+            print('Done.')
         
         except:
             raise
 
-        return [output.read() for output in exec_out]
+        return str(exec_out[1].read(), encoding='utf-8')
 
 
 class KeyUploader(object):

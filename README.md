@@ -30,9 +30,9 @@ Some details to note:
 * Uploaded data for a given Stan model is sent via SFTP as a json file.
 * You cannot just upload Stan source as a string.  Don't be that person.
 
-### pystanssh with PyStan2
+### pystanssh with legacy PyStan2
 
-Start by importing the pystan2 module from pystanssh:
+Start by importing the unmaintained legacy pystan2 module from pystanssh:
 ```python
 from pystanssh import pystan2
 ```
@@ -46,4 +46,31 @@ rsa_key_file = Path('/wherever-your-key-file-is/key-file')
 ps2 = pystan2.PyStan2SSH(host_name, user_name, rsa_key_file)
 ```
 
-PyStan2 model objects require a Stan model source code, while sampling from this object requires a dictionary providing the input data, the number of chains, and the number of iterations.  When sampling a posterior, once frequently specifies the initial conditions of each chain, although this is not necessary.
+pystanssh workflow for legacy PyStan2 provides a convenience method to create and upload a JSON file that contains all necessary data and metadata to instantiate a provided model.  The PyStan2SSH also has convenience methods to upload related shell or python scripts for running PyStan2 on the target remote server.
+```python
+data = {
+    'x': [1, 2, 3, 4],
+    'y': [2, 4, 6, 8]
+}
+
+init = {
+    'a': 2,
+    'b': 0
+}
+
+iterations = 1000
+nchains = 4
+test_model = 'test.stan'
+
+test_model_path = Path('/some/path/somewhere') / model
+host_path = Path('/remote/path')
+
+json = ps2.upload_sampling_input(
+    data, iterations, nchains, host_path, test_model, test_model_path, init=init,
+    save_json_path=test_model_path / f'{test_model}.json'
+)
+```
+The script above uploads a JSON file for model 'test.stan' located at '/some/path/somewhere/' to a host server directory '/remote/path' while saving a local copy of said JSON file to '/some/path/somewhere/test.stan.json'.  It also uploads the stan model file to the same directory.  The 'init' kwarg provides initial conditions for this model's parameters 'a' and 'b'.  Note that this 'init' input can be a single dictionary (which will provide the same initial conditions for reach chain), or a list of dictionaries for each chain.
+### pystanssh with PyStan (aka PyStan 3.0.4)
+
+The workflow for using pystanssh with the latest version of PyStan is currently identical apart from naming convention changes, with 'iterations' -> 'num_samples' and 'nchains' -> 'num_chains'.  PyStan 3.0 does have a slightly revised workflow relative to legacy PyStan 2, (so keep that in mind)[https://pystan.readthedocs.io/en/latest/upgrading.html#upgrading].
