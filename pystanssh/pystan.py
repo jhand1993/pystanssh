@@ -13,7 +13,7 @@ class PyStanSSH(BaseConnection):
         super().__init__(host, username, keypath)
 
     def upload_sampling_input(
-        self, input_data, num_samples, nchains, host_path, fname, stan_code_path,
+        self, input_data, num_samples, num_chains, host_path, fname, stan_code_path,
         init=None, close_connection=True, save_json_path=None
         ):
         """ Uploads a JSON file containing necessary input for running a PyStan2 sampling script.
