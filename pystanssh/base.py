@@ -260,10 +260,10 @@ class BaseConnection(object):
         
         return True
 
-    def upload_obj(self, obj, host_path, fname, close_connection=True):
-        """ Uploads file-like object converted to StringIO object to host_path
+    def upload_serialobj(self, obj, host_path, fname, close_connection=True):
+        """ Uploads file-like serialized object converted to StringIO object to host_path.
         Args:
-            obj (Dict): File-like object to send to host path.
+            obj (Dict): File-like serialized object to send to host path.
             host_path (str or pathlib.Path): Path on host to send and save obj.
             fname (str): File name for file saved on host machine.
             close_connection (bool): Close connection once complete.  Default is True.
@@ -322,7 +322,7 @@ class BaseConnection(object):
             print('All data types must be native python types.')
             raise(e)
     
-        return self.upload_obj(
+        return self.upload_serialobj(
             dict_dumps, host_json_path, fname_json, close_connection=close_connection
             )
 
