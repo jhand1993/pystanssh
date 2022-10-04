@@ -21,9 +21,9 @@ Installing through PyPi is preferred:
 
 ## Getting Started
 
-pystanssh provides convenient SSH functionality for running PyStan on a remote server.  Try to have a SSH key to streamline the connection process.  PyStan itself has two working version with different functionality: legacy (PyStan2)[https://pystan2.readthedocs.io/en/latest/getting_started.html] and (PyStan)[https://pystan.readthedocs.io/en/latest/getting_started.html], aka PyStan3.  There is a module for each version to handle discrepencies in these two packages. (Stan)[https://mc-stan.org/] itself has tools for Monte Carlo sampling (NUTS or HMC), Bayesian variational inference, or optimization (L-BFGS).  PyStan2 provides wrappers for compiling models along with sampling, inference, and optimization.  At this time, PyStan3 only has wrappers for compiling models and sampling.  Also, PyStan2 is no longer maintained by the Stan group.  
+pystanssh provides convenient SSH functionality for running PyStan on a remote server.  Try to have a SSH key to streamline the connection process.  [Stan](https://mc-stan.org/) itself has tools for Monte Carlo sampling (NUTS or HMC), Bayesian variational inference, or optimization (L-BFGS).  PyStan provides wrappers for compiling models along with sampling, inference, and optimization. 
 
-Some details to note:
+Some details about pystanssh to note:
 
 * Native python pathlib Path objects work fine.
 * Numpy is required so to resolve datatype issues when building jsonizable data types.
@@ -88,4 +88,4 @@ You can provide Stan source code as a block string, but this will be uploaded as
 
 ### pystanssh with PyStan 2
 
-Using pystanssh with legacy PyStan 2 apart from naming convention changes does currently work, but keep in mind that in switching from PyStan 3 to PyStan 2, you'll need to keep in mind the change in keyword arguments (I.e. 'num_samples' -> 'iterations' and 'num_chains' -> 'nchains').  PyStan 3 does have a slightly revised workflow relative to legacy PyStan 2, (so keep that in mind)[https://pystan.readthedocs.io/en/latest/upgrading.html#upgrading].   
+Using pystanssh with legacy PyStan 2 apart from naming convention changes does currently work, but keep in mind that in switching from PyStan 3 to PyStan 2, you'll need to keep in mind the change in keyword arguments (I.e. 'num_samples' -> 'iterations' and 'num_chains' -> 'nchains').  PyStan 3 does have a slightly revised workflow relative to legacy PyStan 2, [so keep that in mind](https://pystan.readthedocs.io/en/latest/upgrading.html#upgrading).   
