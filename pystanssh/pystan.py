@@ -32,7 +32,7 @@ class PyStanSSH(BaseConnection):
                 dictionaries for each chain.  Default is None.
             close_connection (bool): Close connection once complete.  Default is True.
             save_json_path (str or pathlib.Path): If provided, the dictionary is dumped in the
-                given path.  If no file name is given, then fname is used. Default is None
+                given path.  If no file name is given, then fname is used. Default is None. 
         
         Returns:
             Dict: Stan input dictionary sent to remote host as JSON file.
