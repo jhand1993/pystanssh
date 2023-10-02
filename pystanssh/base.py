@@ -277,6 +277,7 @@ class BaseConnection(object):
         # Make sure obj is StringIO type:
         if type(obj) is not StringIO:
 
+            # Kill program if obj cannot be cast to StringIO.
             try:
                 obj = StringIO(obj)
 
