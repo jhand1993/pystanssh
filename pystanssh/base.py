@@ -264,7 +264,7 @@ class BaseConnection(object):
     def upload_serialobj(self, obj, host_path, fname, close_connection=True):
         """ Uploads file-like serialized object converted to StringIO object to host_path.
         Args:
-            obj (Dict): File-like serialized object to send to host path.
+            obj (StringIO): File-like serialized object to send to host path.
             host_path (str or pathlib.Path): Path on host to send and save obj.
             fname (str): File name for file saved on host machine.
             close_connection (bool): Close connection once complete.  Default is True.
@@ -276,7 +276,13 @@ class BaseConnection(object):
 
         # Make sure obj is StringIO type:
         if type(obj) is not StringIO:
-            obj = StringIO(obj)
+
+            try:
+                obj = StringIO(obj)
+
+            except TypeError as e:
+                print('Make sure obj is a string!')
+                raise
         
         # Handle error with printed message, returning None instead.
         try:
