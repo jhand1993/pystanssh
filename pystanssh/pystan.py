@@ -1,4 +1,4 @@
-""" Legacy PyStan2 ssh functionality.
+""" PyStan 2 and 3 ssh functionality.
 """
 import json
 from io import StringIO

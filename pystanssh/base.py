@@ -211,23 +211,24 @@ class BaseConnection(object):
 
         return get_output
 
-    def get_fileobject(self, host_path):
-        """ Get file from host_path on host machine using SFTP and return file object:
-        Args:
-            host_path (str or pathlib.Path): Host path to recieve sent file.
+    ### NOTE: This is not functioning at the moment. It is also not used.
+    # def get_fileobject(self, host_path):
+    #     """ Get file from host_path on host machine using SFTP and return file object:
+    #     Args:
+    #         host_path (str or pathlib.Path): Host path to recieve sent file.
         
-        Returns:
-            paramiko.sftp_attr.SFTPAttributes: Grabbed file attribute instance.
-        """
-        # Open SFTP tunnel if not already open
-        if self.stfp_tunnel is None:
-            self.connect_sftp()
-        
-        # Send file:
-        get_output = self.stfp_tunnel.getfo(str(host_path), file_object)
+    #     Returns:
+    #         paramiko.sftp_attr.SFTPAttributes: Grabbed file attribute instance.
+    #     """
+    #     # Open SFTP tunnel if not already open
+    #     if self.stfp_tunnel is None:
+    #         self.connect_sftp()
 
-        return get_output
-    
+    #     # Send file:
+    #     get_output = self.stfp_tunnel.getfo(str(host_path), file_object)
+
+    #     return get_output
+
     def close_sftp(self):
         """ Closes SFTP tunnel instance if open.
         Returns:
@@ -241,7 +242,7 @@ class BaseConnection(object):
             self.stfp_tunnel = None
         
         return True
-    
+
     def close_ssh(self):
         """ Closes SSH Client if open.
         Returns:
