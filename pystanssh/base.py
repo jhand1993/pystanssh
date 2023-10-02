@@ -472,8 +472,8 @@ class KeyUploader(object):
             username (str): Username
         """
         try:
-            system(f'ssh-copy-id -i {keypath} {user}@{host}>/dev/null 2>&1')
-            system(f'ssh-copy-id -i {keypath}.pub {user}@{host}>/dev/null 2>&1')
+            system(f'ssh-copy-id -i {keypath} {username}@{host}>/dev/null 2>&1')
+            system(f'ssh-copy-id -i {keypath}.pub {username}@{host}>/dev/null 2>&1')
         
         except FileNotFoundError as e:
             print(f'Check given path {keypath}.')
